@@ -1,1 +1,42 @@
+# Virtual environment
 fraud/
+
+# Data (never commit raw data)
+data/raw/
+*.parquet
+*.csv
+!data/processed/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Model artifacts
+catboost_info/
+outputs/*.cbm
+outputs/*.json
+!outputs/.gitkeep
+
+# Feast
+feature_store/feature_repo/data/
+feature_store/feature_repo/registry.db
+
+# Misc
+*.log
+improvement.md
