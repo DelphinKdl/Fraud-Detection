@@ -1,0 +1,12 @@
+fraud/
+Notebook/
+data/
+images/
+tests/
+catboost_info/
+.git/
+.gitignore
+*.ipynb
+*.md
+__pycache__/
+*.pyc

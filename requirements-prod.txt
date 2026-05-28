@@ -1,0 +1,11 @@
+catboost==1.2.7
+fastapi==0.129.0
+numpy==1.26.4
+optuna==4.4.0
+pandas==2.3.3
+pydantic==2.12.5
+PyYAML==6.0.3
+requests==2.32.5
+scikit-learn==1.2.2
+streamlit>=1.30.0
+uvicorn==0.41.0

@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import pandas as pd
@@ -29,28 +30,31 @@ config = load_config("config/config.yaml")
 
 FEATURE_COLUMNS = ["Time"] + [f"V{i}" for i in range(1, 29)] + ["Amount"]
 
-app = FastAPI(
-    title="Fraud Detection API",
-    description="Real-time fraud scoring with CatBoost",
-    version="1.0.0",
-)
-
 model: CatBoostClassifier | None = None
 model_version: str = "unknown"
 
 
-@app.on_event("startup")
-def load_model() -> None:
-    """Load CatBoost model on startup."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Load model on startup."""
     global model, model_version
     model_path = Path(config.outputs.model_dir) / f"catboost_model.{config.outputs.model_format}"
-    if not model_path.exists():
+    if model_path.exists():
+        model = CatBoostClassifier()
+        model.load_model(str(model_path))
+        model_version = str(model_path.stat().st_mtime)
+        logger.info("Model loaded: %s (modified: %s)", model_path, model_version)
+    else:
         logger.error("Model file not found: %s", model_path)
-        return
-    model = CatBoostClassifier()
-    model.load_model(str(model_path))
-    model_version = model_path.stat().st_mtime
-    logger.info("Model loaded: %s (modified: %s)", model_path, model_version)
+    yield
+
+
+app = FastAPI(
+    title="Fraud Detection API",
+    description="Real-time fraud scoring with CatBoost",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
 
 def _predict_single(txn: TransactionRequest) -> PredictionResponse:

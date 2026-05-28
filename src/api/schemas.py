@@ -2,11 +2,19 @@ from __future__ import annotations
 
 from typing import List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TransactionRequest(BaseModel):
     """Single transaction for prediction."""
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {"Time": 0.0, **{f"V{i}": 0.0 for i in range(1, 29)}, "Amount": 149.62}
+            ]
+        }
+    )
+
     Time: float
     V1: float
     V2: float
@@ -37,15 +45,6 @@ class TransactionRequest(BaseModel):
     V27: float
     V28: float
     Amount: float
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "Time": 0.0,
-                **{f"V{i}": 0.0 for i in range(1, 29)},
-                "Amount": 149.62,
-            }
-        }
 
 
 class PredictionResponse(BaseModel):
