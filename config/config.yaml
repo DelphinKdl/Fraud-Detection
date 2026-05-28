@@ -37,3 +37,17 @@ api:
 
 dashboard:
   port: 8501
+
+feature_store:
+  repo_path: "feature_store/feature_repo"
+  online_store:
+    type: "postgres"
+    host: "localhost"
+    port: 5432
+    database: "fraud_features"
+    user: "fraud_user"
+    password: "fraud_pass"
+
+streaming:
+  sample_size: 100
+  score_threshold: 0.5

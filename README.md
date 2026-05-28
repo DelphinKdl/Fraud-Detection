@@ -134,18 +134,53 @@ A **Kafka-triggered event stream** pulls fresh transaction data through the same
 
 ```bash
 # Clone the repository
-git clone https://github.com/https://github.com/DelphinKdl/Fraud-Detection.git
+git clone https://github.com/DelphinKdl/Fraud-Detection.git
 cd Fraud-Detection
 
 # Create and activate virtual environment
 python -m venv fraud
-source fraud/bin/activate   # Windows: fraud_env\Scripts\activate
+source fraud/bin/activate
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -r requirements-prod.txt
 
-# Run the notebook
-jupyter notebook fraud_detection.ipynb
+# Run the full pipeline (train model)
+make train
+
+# Start the API
+make serve
+
+# Start the dashboard (separate terminal)
+make dashboard
+```
+
+### Docker (Full Stack)
+
+```bash
+# Build and start all services (API + PostgreSQL + Dashboard)
+make docker-up
+
+# Teardown
+make docker-down
+```
+
+### Feature Store
+
+```bash
+# Start PostgreSQL
+docker compose up -d postgres
+
+# Prepare data and materialize features
+python -m src.features.store --prepare
+make feast-apply
+make feast-materialize
+```
+
+### Streaming Simulator
+
+```bash
+# Run Kafka-style consumer simulator (scores 100 transactions)
+make stream
 ```
 
 ---
@@ -153,26 +188,89 @@ jupyter notebook fraud_detection.ipynb
 ## Project Architecture & Data Flow
 
 ```
-fraud-detection/
+Fraud_Detection/
+├── config/
+│   └── config.yaml                     # Pipeline + model + API configuration
 ├── data/
-│   └── creditcard.csv                  # 284,807 transactions × 31 features
-├── images/
-│   └── Fraud-Detection-System-Design.png  # Production ML system architecture
-├── fraud_detection.ipynb               # End-to-end ML notebook (EDA to Modeling to Evaluation)
-├── requirements.txt                    # Python dependencies
-└── README.md
+│   ├── raw/                            # Raw creditcard.parquet (gitignored)
+│   └── processed/                      # Clean parquet from EDA
+├── src/
+│   ├── config.py                       # Typed dataclass config from YAML
+│   ├── pipeline.py                     # End-to-end CLI orchestrator
+│   ├── data/
+│   │   ├── ingestion.py                # Load parquet/CSV, log schema
+│   │   └── validation.py              # Pydantic schema validation
+│   ├── features/
+│   │   ├── engineering.py              # Dedup, feature selection, stratified split
+│   │   └── store.py                   # Feast feature store integration
+│   ├── models/
+│   │   ├── train.py                    # CatBoost + Optuna (30 trials, 3-fold CV)
+│   │   └── evaluate.py               # Metrics → outputs/metrics.json
+│   ├── api/
+│   │   ├── app.py                      # FastAPI: /predict, /predict/batch, /health, /metrics
+│   │   └── schemas.py                 # Pydantic request/response models
+│   └── streaming/
+│       └── consumer.py                # Kafka consumer simulator (asyncio)
+├── feature_store/
+│   └── feature_repo/                  # Feast definitions (PostgreSQL online store)
+├── dashboard/
+│   └── app.py                          # Streamlit monitoring dashboard
+├── tests/                              # 24 tests (validation, features, inference, API)
+├── Notebook/
+│   ├── EDA.ipynb                       # Exploration + preprocessing decisions
+│   └── Modeling.ipynb                  # Experiments + model selection
+├── Dockerfile                          # Production container
+├── docker-compose.yaml                 # API + PostgreSQL + Dashboard
+├── Makefile                            # train / serve / dashboard / test / stream / docker-up
+└── requirements-prod.txt               # Production dependencies
 ```
 
 ---
 
 ## Tech Stack
 
-- **ML Frameworks**: CatBoost, Scikit-learn
-- **Hyperparameter Tuning**: Optuna (10 trials, TPE sampler - 100+ recommended for production)
-- **Data Analysis**: Pandas, NumPy, YData Profiling
-- **Visualization**: Matplotlib, Seaborn, Plotly
-- **Experiment Tracking**: MLflow
-- **Language**: Python 3.11
+| Category | Technology |
+|----------|-----------|
+| **ML Framework** | CatBoost 1.2.7 |
+| **Hyperparameter Tuning** | Optuna (30 trials, TPE sampler, 3-fold Stratified CV) |
+| **Data Validation** | Pydantic v2 |
+| **API** | FastAPI + Uvicorn |
+| **Feature Store** | Feast (PostgreSQL online store, Parquet offline store) |
+| **Streaming** | Asyncio-based Kafka consumer simulator |
+| **Dashboard** | Streamlit |
+| **Database** | PostgreSQL 15 |
+| **Containerization** | Docker + Docker Compose |
+| **Testing** | pytest (24 tests) |
+| **Data Analysis** | Pandas, NumPy, YData Profiling |
+| **Visualization** | Matplotlib, Seaborn, Plotly |
+| **Language** | Python 3.11 |
+
+---
+
+## Resume Bullet Points
+
+- **Built a real-time fraud scoring API** serving CatBoost predictions via FastAPI with 97.1% precision and 71.6% recall on 284K transactions, processing single-transaction inference in <100ms with structured Pydantic validation and batch scoring support.
+- **Integrated a Feast feature store** with PostgreSQL online store and Parquet offline store, enabling consistent feature serving across training and real-time inference pipelines with sub-millisecond feature retrieval for 30 engineered features.
+- **Deployed a containerized ML system** using Docker Compose (FastAPI + PostgreSQL + Streamlit), with automated health checks, model versioning, and a Makefile-driven workflow covering training, serving, testing (24 pytest cases), and monitoring.
+
+---
+
+## Interview Questions
+
+**Q1: Why did you choose CatBoost over Random Forest, given RF had similar metrics?**
+> CatBoost matched the RF baseline (F1=0.82) while providing a more robust foundation: built-in handling of class imbalance via `auto_class_weights`, L2 regularization, and Optuna-tunable hyperparameters. With only 30 trials, the CV F1 reached 0.9365 — RF has no equivalent tuning pathway. CatBoost also produces calibrated probabilities critical for threshold-based alerting.
+
+**Q2: Why didn't you remove outliers or upsample the minority class?**
+> I ran a full ablation study. Outlier removal dropped recall from 0.82 to 0.18 (F1 from 0.87 to 0.28) because extreme V1–V28 values ARE the fraud signal in PCA-transformed space. Upsampling didn't improve over the baseline and added training complexity. Keeping the raw imbalance let CatBoost's native handling outperform both alternatives.
+
+**Q3: How does the feature store improve your system over direct data loading?**
+> Feast ensures training-serving consistency: the same feature transformations applied offline are materialized to PostgreSQL for real-time retrieval. Without it, training uses one code path and serving another, leading to training-serving skew. It also decouples feature engineering from model code, enabling independent feature iteration.
+
+**Q4: How would you handle concept drift in production?**
+> I'd monitor the distribution of V1–V28 using PSI (Population Stability Index) on the live scoring stream, compare against training distributions, and trigger retraining when PSI exceeds a threshold. The `/metrics` endpoint already exposes evaluation metrics for alerting, and the modular pipeline supports automated retraining.
+
+**Q5: What would you change with more time and resources?**
+> (1) Replace the asyncio consumer simulator with an actual Kafka broker for true streaming. (2) Add MLflow experiment tracking for model registry and A/B testing. (3) Implement a CI/CD pipeline (GitHub Actions) with automated testing and Docker image publishing. (4) Add SHAP explanations to the `/predict` response for fraud analyst interpretability.
 
 ---
 

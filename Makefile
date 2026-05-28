@@ -1,4 +1,4 @@
-.PHONY: train serve dashboard test docker-build docker-up docker-down lint clean
+.PHONY: train serve dashboard test docker-build docker-up docker-down lint clean stream feast-apply feast-materialize
 
 # --- Local commands ---
 
@@ -17,6 +17,19 @@ test:
 lint:
 	python -m flake8 src/ --max-line-length 120
 	python -m mypy src/ --ignore-missing-imports
+
+# --- Feature Store ---
+
+feast-apply:
+	feast -c feature_store/feature_repo apply
+
+feast-materialize:
+	python -m src.features.store --materialize
+
+# --- Streaming ---
+
+stream:
+	python -m src.streaming.consumer
 
 # --- Docker commands ---
 

@@ -67,6 +67,28 @@ class DashboardConfig:
 
 
 @dataclass
+class OnlineStoreConfig:
+    type: str = "postgres"
+    host: str = "localhost"
+    port: int = 5432
+    database: str = "fraud_features"
+    user: str = "fraud_user"
+    password: str = "fraud_pass"
+
+
+@dataclass
+class FeatureStoreConfig:
+    repo_path: str = "feature_store/feature_repo"
+    online_store: OnlineStoreConfig = field(default_factory=OnlineStoreConfig)
+
+
+@dataclass
+class StreamingConfig:
+    sample_size: int = 100
+    score_threshold: float = 0.5
+
+
+@dataclass
 class Config:
     data: DataConfig = field(default_factory=DataConfig)
     preprocessing: PreprocessingConfig = field(default_factory=PreprocessingConfig)
@@ -75,6 +97,8 @@ class Config:
     outputs: OutputsConfig = field(default_factory=OutputsConfig)
     api: ApiConfig = field(default_factory=ApiConfig)
     dashboard: DashboardConfig = field(default_factory=DashboardConfig)
+    feature_store: FeatureStoreConfig = field(default_factory=FeatureStoreConfig)
+    streaming: StreamingConfig = field(default_factory=StreamingConfig)
 
 
 def _build_nested(cls, data: dict):

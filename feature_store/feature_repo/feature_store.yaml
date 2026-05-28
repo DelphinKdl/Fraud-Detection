@@ -1,1 +1,16 @@
-# TODO: Feast config (offline: Parquet, online: Redis/SQLite)
+project: fraud_detection
+provider: local
+registry: feature_store/feature_repo/registry.db
+
+online_store:
+  type: postgres
+  host: ${POSTGRES_HOST:-localhost}
+  port: ${POSTGRES_PORT:-5432}
+  database: ${POSTGRES_DB:-fraud_features}
+  user: ${POSTGRES_USER:-fraud_user}
+  password: ${POSTGRES_PASSWORD:-fraud_pass}
+
+offline_store:
+  type: file
+
+entity_key_serialization_version: 2

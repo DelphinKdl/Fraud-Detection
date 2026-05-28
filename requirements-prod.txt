@@ -1,8 +1,10 @@
 catboost==1.2.7
 fastapi==0.129.0
+feast[postgres]>=0.34.0
 numpy==1.26.4
 optuna==4.4.0
 pandas==2.3.3
+psycopg2-binary>=2.9.0
 pydantic==2.12.5
 PyYAML==6.0.3
 requests==2.32.5
