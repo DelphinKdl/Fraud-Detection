@@ -1,1 +1,39 @@
-# TODO: All project configuration (data paths, model params, API settings)
+# Fraud Detection Pipeline Configuration
+
+data:
+  raw_path: "data/raw/creditcard.parquet"
+  processed_path: "data/processed/creditcard_clean.parquet"
+  target_column: "Class"
+
+preprocessing:
+  remove_duplicates: true
+
+splitting:
+  test_size: 0.20
+  random_seed: 42
+  stratify: true
+
+model:
+  type: "catboost"
+  optuna_trials: 30
+  cv_folds: 3
+  max_iterations: 1000
+  early_stopping_rounds: 100
+  random_seed: 42
+  search_space:
+    learning_rate: [0.01, 0.2]
+    depth: [3, 8]
+    l2_leaf_reg: [0.5, 5.0]
+
+outputs:
+  model_dir: "outputs"
+  metrics_path: "outputs/metrics.json"
+  model_format: "cbm"
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  model_version: "latest"
+
+dashboard:
+  port: 8501
